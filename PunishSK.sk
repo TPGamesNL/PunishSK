@@ -1,0 +1,340 @@
+options:
+	prefix: &8[&cPunish&aSK&8] &e
+	input_time: 10		# in seconds
+
+command /tempban <offline player> <integer> <text>:
+	permission: punish.tempban
+	usage: /tempban <player> <timespan> <reason>
+	trigger:
+		set {_a3::*} to arg-3 split at " "
+		set {_t} to {_a3::1}
+		delete {_a3::1}
+		set {_a3::*} to {_a3::*}
+		if {_a3::*} is not set:
+			message "{@prefix}Please specify a reason!"
+			stop
+		set {_reason} to join {_a3::*} with " "
+		set {_time} to "%arg-2% %{_t}%" parsed as a timespan
+		if {_time} is not set:
+			message "{@prefix}That is not a valid timespan!"
+			stop
+		set {_until} to now 
+		add {_time} to {_until}
+		set {punishments::banned::%arg-1%} to {_reason}
+		set {punishments::banned::%arg-1%::until} to {_until}
+		set {punishments::banned::%arg-1%::time} to {_time}
+		set {punishments::banned::%arg-1%::bannedon} to now
+		kick arg-1 due to "{@prefix}%nl%%nl%&cYou are temporary banned for &a%{_time}% &cfrom this server!%nl%%nl%&eReason: &a%colored {_reason}%%nl%&eBanned on &a%now% &euntil &a%{_until}%"
+		message "{@prefix}Banned &a%arg-1% &edue to &a%{_reason}% &efor &a%{_time}%"
+		
+on connect:	
+	if {punishments::banned::%player%::until} <= now:
+		delete {punishments::banned::%player%}
+		delete {punishments::banned::%player%::until}
+		delete {punishments::banned::%player%::time}
+		stop
+	{punishments::banned::%player%} is set
+	set {_reason} to {punishments::banned::%player%}
+	set {_until} to {punishments::banned::%player%::until}
+	set {_time} to {punishments::banned::%player%::time}
+	set {_bannedon} to {punishments::banned::%player%::bannedon}
+	set {_timeremaining} to difference between {_until} and now
+	kick player due to "{@prefix}%nl%%nl%&cYou are temporary banned for &a%{_timeremaining}% &cfrom this server!%nl%%nl%&eReason: &a%colored {_reason}%%nl%&eBanned on &a%{_bannedon}% &euntil &a%{_until}%"
+		
+command /unban <offline player>:
+	permission: punish.unban
+	usage: /unban <player>
+	trigger:
+		if {punishments::banned::%arg-1%} is set:
+			delete {punishments::banned::%arg-1%}
+			delete {punishments::banned::%arg-1%::until}
+			delete {punishments::banned::%arg-1%::time}
+			delete {punishments::permbanned::%arg-1%}
+			message "{@prefix}Unbanned %arg-1%"
+			stop
+		if {punishments::permbanned::%arg-1%} is set:
+			delete {punishments::banned::%arg-1%}
+			delete {punishments::banned::%arg-1%::until}
+			delete {punishments::banned::%arg-1%::time}
+			delete {punishments::permbanned::%arg-1%}
+			message "{@prefix}Unbanned %arg-1%"
+			stop
+		message "{@prefix}That player isn't banned!"
+		
+command /ban [<offline player>] [<text>]:
+	permission: punish.ban
+	aliases: /permban
+	usage: /ban <player> <reason>
+	trigger:
+		if arg 1 is not set:
+			message "{@prefix}Please specify a player!"
+			stop
+		if arg 2 is not set:
+			message "{@prefix}Please specify a reason!"
+			stop
+		set {punishments::permbanned::%arg-1%} to arg-2
+		kick arg-1 due to "{@prefix}%nl%%nl%&cYou are permanently banned from this server due to &a%arg-2%&c!"
+		message "{@prefix}Banned %arg-1% due to %arg-2%"
+		
+on connect:
+	{punishments::permbanned::%player%} is set
+	kick player due to "{@prefix}%nl%%nl%&cYou are permanently banned from this server due to &a%{punishments::permbanned::%player%}%&c!"
+	
+command /mute [<offline player>] [<text>]:
+	permission: punish.mute
+	aliases: /permmute
+	usage: /mute <player> <reason>
+	trigger:
+		if arg 1 is not set:
+			message "{@prefix}Please specify a player!"
+			stop
+		if arg 2 is not set:
+			message "{@prefix}Please specify a reason!"
+			stop
+		set {punishments::permmuted::%arg-1%} to arg-2
+		send "{@prefix}&cYou have been permanently muted due to &a%arg-2%&c!" to arg-1
+		message "{@prefix}Muted %arg-1% due to %arg-2%"
+		
+on chat:
+	{punishments::permmuted::%player%} is set
+	send "{@prefix}&cYou have been permanently muted due to &a%{punishments::permmuted::%player%}%&c!" to player
+	cancel event
+		
+on connect:
+	{punishments::permbanned::%player%} is set
+	kick player due to "{@prefix}%nl%%nl%&cYou are permanently banned from this server due to &a%{punishments::permbanned::%player%}%&c!"
+	
+command /unmute <offline player>:
+	permission: punish.unmute
+	usage: /unmute <player>
+	trigger:
+		if {punishments::tempmuted::%arg-1%} is set:
+			delete {punishments::tempmuted::%arg-1%}
+			delete {punishments::tempmuted::%arg-1%::until}
+			delete {punishments::tempmuted::%arg-1%::time}
+			delete {punishments::permmuted::%arg-1%}
+			message "{@prefix}Unmuted %arg-1%"
+			stop
+		if {punishments::permmuted::%arg-1%} is set:
+			delete {punishments::tempmuted::%arg-1%}
+			delete {punishments::tempmuted::%arg-1%::until}
+			delete {punishments::tempmuted::%arg-1%::time}
+			delete {punishments::permmuted::%arg-1%}
+			message "{@prefix}Unmuted %arg-1%"
+			stop
+		message "{@prefix}That player isn't muted!"
+		
+command /tempmute <offline player> <integer> <text>:
+	permission: punish.tempmute
+	usage: /tempmute <player> <timespan> <reason>
+	trigger:
+		set {_a3::*} to arg-3 split at " "
+		set {_t} to {_a3::1}
+		delete {_a3::1}
+		set {_a3::*} to {_a3::*}
+		if {_a3::*} is not set:
+			message "{@prefix}Please specify a reason!"
+			stop
+		set {_reason} to join {_a3::*} with " "
+		set {_time} to "%arg-2% %{_t}%" parsed as a timespan
+		if {_time} is not set:
+			message "{@prefix}That is not a valid timespan!"
+			stop
+		set {_until} to now 
+		add {_time} to {_until}
+		set {punishments::tempmuted::%arg-1%} to {_reason}
+		set {punishments::tempmuted::%arg-1%::until} to {_until}
+		set {punishments::tempmuted::%arg-1%::time} to {_time}
+		set {punishments::tempmuted::%arg-1%::mutedon} to now
+		send "{@prefix}&cYou have been temporary muted for &a%{_time}%&c!" to arg-1
+		send "{@prefix}Reason: &a%colored {_reason}%" to arg-1
+		send "{@prefix}Muted on &a%now% &euntil &a%{_until}%" to arg-1
+		message "{@prefix}Muted &a%arg-1% &edue to &a%{_reason}% &efor &a%{_time}%"
+		
+on chat:	
+	if {punishments::tempmuted::%player%::until} <= now:
+		delete {punishments::tempmuted::%player%}
+		delete {punishments::tempmuted::%player%::until}
+		delete {punishments::tempmuted::%player%::time}
+		stop
+	{punishments::tempmuted::%player%} is set
+	cancel event
+	set {_reason} to {punishments::tempmuted::%player%}
+	set {_until} to {punishments::tempmuted::%player%::until}
+	set {_time} to {punishments::tempmuted::%player%::time}
+	set {_mutedon} to {punishments::tempmuted::%player%::mutedon}
+	set {_timeremaining} to difference between {_until} and now
+	message "{@prefix}&cYou have been temporary muted for &a%{_timeremaining}%&c!"
+	message "{@prefix}Reason: &a%colored {_reason}%"
+	message "{@prefix}Muted on &a%{_mutedon}% &euntil &a%{_until}%"
+
+command /punish [<text>]:
+	permission: punish.command
+	trigger:
+		if arg-1 is not set:
+			punishSelectPlayer(1, player)
+			stop
+		set {_split::*} to split arg-1 at " "
+		set {_p} to {_split::1} parsed as a offline player
+		set {_t} to "%{_split::2}%"
+		if {_t} is set:
+			{_t} is not "<none>"
+			if {_t} is "tempmute":
+				punishSelectTimespan(player, 1 day, {_p}, "tempmute")
+			if {_t} is "mute":
+				set {punishments::inputreason::%player%} to true
+				message "{@prefix}You have {@input_time} seconds to input the reason in chat!"
+				set {_times} to {@input_time} * 10
+				loop {_times} times:
+					if {punishments::inputreason::%player%} is not true:
+						if {punishments::inputreason::%player%} is "cancel":
+							delete {punishments::inputreason::%player%}
+							message "{@prefix}Cancelled punish!"
+							stop
+						make player execute command "/mute %{_p}% %{punishments::inputreason::%player%}%"
+						delete {punishments::inputreason::%player%}
+						stop
+					wait 0.1 second
+				delete {punishments::inputreason::%player%}
+				message "{@prefix}Time up! Please start again if you wish to preceed the punish."
+				stop
+			if {_t} is "tempban":
+				punishSelectTimespan(player, 1 day, {_p}, "tempban")
+			if {_t} is "ban":
+				set {punishments::inputreason::%player%} to true
+				message "{@prefix}You have {@input_time} seconds to input the reason in chat!"
+				set {_times} to {@input_time} * 10
+				loop {_times} times:
+					if {punishments::inputreason::%player%} is not true:
+						if {punishments::inputreason::%player%} is "cancel":
+							delete {punishments::inputreason::%player%}
+							message "{@prefix}Cancelled punish!"
+							stop
+						make player execute command "/ban %{_p}% %{punishments::inputreason::%player%}%"
+						delete {punishments::inputreason::%player%}
+						stop
+					wait 0.1 second
+				delete {punishments::inputreason::%player%}
+				message "{@prefix}Time up! Please start again if you wish to preceed the punish."
+				stop
+			stop
+		open chest with 3 rows named "{@prefix}Punish %{_p}%" to player
+		wait 1 tick
+		format slot 10 of player with book named "&eTemporary mute" to close then run [make player execute command "/punish %{_p}% tempmute"]
+		format slot 12 of player with book named "&ePermanent mute" to close then run [make player execute command "/punish %{_p}% mute"]
+		format slot 14 of player with barrier named "&eTemporary ban" to close then run [make player execute command "/punish %{_p}% tempban"]
+		format slot 16 of player with barrier named "&ePermanent ban" to close then run [make player execute command "/punish %{_p}% ban"]
+		
+function punishSelectTimespan(p: player, t: timespan, p2: player, text: text):
+	wait 1 tick
+	if "%{_text}%" is "done_tempmute":
+		set {punishments::inputreason::%{_p}%} to true
+		send "{@prefix}You have {@input_time} seconds to input the reason in chat!" to {_p}
+		set {_times} to {@input_time} * 10
+		loop {_times} times:
+			if {punishments::inputreason::%{_p}%} is not true:
+				if {punishments::inputreason::%{_p}%} is "cancel":
+					delete {punishments::inputreason::%{_p}%}
+					send "{@prefix}Cancelled punish!" to {_p}
+					stop
+				make {_p} execute command "/tempmute %{_p2}% %{_t}% %{punishments::inputreason::%{_p}%}%"
+				delete {punishments::inputreason::%{_p}%}
+				stop
+			wait 0.1 second
+		delete {punishments::inputreason::%{_p}%}
+		send "{@prefix}Time up! Please start again if you wish to preceed the punish." to {_p}
+		stop
+	if "%{_text}%" is "done_tempban":
+		set {punishments::inputreason::%{_p}%} to true
+		send "{@prefix}You have {@input_time} seconds to input the reason in chat!" to {_p}
+		set {_times} to {@input_time} * 10
+		loop {_times} times:
+			if {punishments::inputreason::%{_p}%} is not true:
+				if {punishments::inputreason::%{_p}%} is "cancel":
+					delete {punishments::inputreason::%{_p}%}
+					send "{@prefix}Cancelled punish!" to {_p}
+					stop
+				make {_p} execute command "/tempban %{_p2}% %{_t}% %{punishments::inputreason::%{_p}%}%"
+				delete {punishments::inputreason::%{_p}%}
+				stop
+			wait 0.1 second
+		delete {punishments::inputreason::%{_p}%}
+		send "{@prefix}Time up! Please start again if you wish to preceed the punish." to {_p}
+		stop
+	if inventory name of {_p}'s current inventory does not contain "&eDuration:":
+		close {_p}'s inventory
+		wait 1 tick
+		open chest with 5 rows named "&eDuration: %{_t}%" to {_p}
+	set inventory name of {_p}'s current inventory to "&eDuration: %{_t}%"
+	wait 1 tick
+	format slot 18 of {_p} with stained glass pane:5 named "&aAdd 1 hour" to run [set {_ts} to {_t}] -> [add 1 hour to {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 19 of {_p} with stained glass pane:5 named "&aAdd 12 hours" to run [set {_ts} to {_t}] -> [add 12 hours to {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 20 of {_p} with stained glass block:5 named "&aAdd 1 day" to run [set {_ts} to {_t}] -> [add 1 day to {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 21 of {_p} with stained glass block:5 named "&aAdd 7 days" to run [set {_ts} to {_t}] -> [add 7 days to {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 23 of {_p} with stained glass block:14 named "&cRemove 7 days" to run [set {_ts} to {_t}] -> [remove 7 days from {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 24 of {_p} with stained glass block:14 named "&cRemove 1 day" to run [set {_ts} to {_t}] -> [remove 1 day from {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 25 of {_p} with stained glass pane:14 named "&cRemove 12 hours" to run [set {_ts} to {_t}] -> [remove 12 hours from {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 26 of {_p} with stained glass pane:14 named "&cRemove 1 hour" to run [set {_ts} to {_t}] -> [remove 1 hour from {_ts}] -> [punishSelectTimespan({_p}, {_ts}, {_p2}, {_text})]
+	format slot 39 of {_p} with wool:5 named "&aDone" to close then run [punishSelectTimespan({_p}, {_t}, {_p2}, "done_%{_text}%")]
+	format slot 41 of {_p} with wool:14 named "&cCancel" to close
+		
+on chat:
+	{punishments::inputreason::%player%} is true
+	cancel event
+	set {punishments::inputreason::%player%} to message
+	
+function punishSelectPlayer(n: integer=1, p: player):
+	set {_list::*} to all players
+	set {_n2} to {_n}
+	set {_page::rows} to 6
+	set {_page::max} to {_n2} * (({_page::rows} - 1) * 9)
+	set {_page::min} to ({_n2} - 1) * (({_page::rows} - 1) * 9)
+	set {_page::posts} to 0
+	set {_page::count} to 0
+	set {_page::number} to {_n2}
+	set {_pages} to size of {_list::*} / (({_page::rows} - 1) * 9)
+	set {_pages} to "%{_pages}%"
+	set {_pages::*} to {_pages} split at "."
+	set {_page::total} to {_pages::1}
+	if {_pages::2} is set:
+		set {_page::total} to {_page::total} parsed as an integer
+		add 1 to {_page::total}
+	if inventory name of {_p}'s current inventory does not contain "&8GUI | ":
+		open chest with {_page::rows} rows named "&8GUI | %{_page::number}%/%{_page::total}%" to {_p}
+	else:
+		loop ({_page::rows} * 9) times:
+			set slot (loop-number - 1) of {_p}'s current inventory to air
+		set inventory name of {_p}'s current inventory to "&8GUI | %{_page::number}%/%{_page::total}%"
+	if {_page::number} is greater than 1:
+		set slot (({_page::rows} - 1) * 9) of {_p}'s current inventory to piston named "&dPrevious Page"
+	loop {_list::*}:
+		if {_page::count} is less than {_page::max}:
+			if {_page::count} is greater than or equal to {_page::min}:
+				set slot {_page::posts} of {_p}'s current inventory to loop-value's skull with lore "&7Click to select" named "&b%loop-value%"
+				add 1 to {_page::posts}
+		add 1 to {_page::count}
+	if {_page::number} is less than {_page::total}:
+		set slot ({_page::rows} * 9 - 1) of {_p}'s current inventory to piston named "&dNext Page"
+ 
+on inventory click:
+	if inventory name of player's current inventory contains "&8GUI | ":
+		cancel the event
+		set {_page::rows} to 3
+		set {_page} to "%inventory name of player's current inventory%"
+		replace all "&8GUI | " in {_page} with ""
+		set {_pages::*} to {_page} split at "/"
+		if clicked slot is (({_page::rows} - 1) * 9):
+			if name of clicked item is "&dPrevious Page":
+				if {_pages::1} parsed as an integer is greater than 1:
+					punishSelectPlayer({_pages::1} parsed as an integer - 1, player)
+				else:
+					close inventory of player
+					send "You are already on the first page."
+		else if clicked slot is ({_page::rows} * 9 - 1):
+			if name of clicked item is "&dNext Page":
+				punishSelectPlayer({_pages::1} parsed as an integer + 1, player)
+		if lore of clicked item is "&7Click to select":
+			set {_p} to uncolored name of clicked item parsed as a player
+			close player's inventory
+			wait 2 ticks
+			execute player command "/punish %{_p}%"
